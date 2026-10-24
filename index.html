@@ -2,7 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#cfeaff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="الحديقة">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>حديقة الأصدقاء</title>
 <!--
   حديقة الأصدقاء: لعبة هادئة للأطفال.
@@ -15,9 +23,10 @@
     --sky1:#cfeaff; --sky2:#fff3d6; --g1:#bfe3a8; --g2:#9fd18b; --ink:#3b4a5a;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
-  html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);
+  html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);overscroll-behavior:none;
+    -webkit-touch-callout:none;
     font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
-  #world{position:fixed;inset:0;touch-action:manipulation;
+  #world{position:fixed;inset:0;touch-action:none;
     background:linear-gradient(var(--sky1),var(--sky2) 55%,var(--g1) 55%,var(--g2))}
   .sun{position:absolute;top:5%;left:8%;font-size:clamp(48px,9vw,84px);pointer-events:none}
   .cloud{position:absolute;left:-25vw;font-size:clamp(48px,9vw,90px);opacity:.9;pointer-events:none;
@@ -84,7 +93,7 @@
   <div class="cloud" style="top:9%">☁️</div>
   <div class="cloud">☁️</div>
   <div class="cloud">☁️</div>
-  <div id="hint">المس العشب لتزرع زهرة 🌱 &nbsp;·&nbsp; المس الأصدقاء ليلعبوا معك</div>
+  <div id="hint">المس العشب أو اسحب إصبعك لتزرع الزهور 🌱 &nbsp;·&nbsp; المس الأصدقاء ليلعبوا معك</div>
   <button class="btn" id="breathBtn" aria-label="ركن التنفّس الهادئ">🎈</button>
   <button class="btn" id="soundBtn" aria-label="تشغيل الصوت">🔇</button>
 </div>
@@ -175,11 +184,27 @@
 
   /* ---------- الزهور ---------- */
   var blooms=['🌸','🌼','🌷','🌻','🌺','🌹','🪻'];
+  /* لمسة تزرع زهرة، والسحب يزرع صفاً من الزهور (يدعم أكثر من إصبع) */
+  var drags={}, lastTone=0;
   world.addEventListener('pointerdown',function(e){
     if(e.target.closest('button')||e.target.closest('.animal')) return;
     if(e.clientY<window.innerHeight*0.58) return;
+    drags[e.pointerId]={x:e.clientX,y:e.clientY};
     plant(e.clientX,e.clientY);
   });
+  world.addEventListener('pointermove',function(e){
+    var d=drags[e.pointerId];
+    if(!d||e.clientY<window.innerHeight*0.58) return;
+    var dx=e.clientX-d.x, dy=e.clientY-d.y;
+    if(dx*dx+dy*dy>72*72){
+      d.x=e.clientX; d.y=e.clientY;
+      plant(e.clientX,e.clientY);
+    }
+  });
+  function endDrag(e){delete drags[e.pointerId];}
+  world.addEventListener('pointerup',endDrag);
+  world.addEventListener('pointercancel',endDrag);
+  document.addEventListener('contextmenu',function(e){e.preventDefault();});
 
   function plant(x,y){
     var f=document.createElement('div');
@@ -190,13 +215,14 @@
     f.innerHTML='<span>'+blooms[Math.floor(Math.random()*blooms.length)]+'</span>';
     world.appendChild(f);
     flowers.push(f);
-    if(flowers.length>60){
+    if(flowers.length>90){
       var old=flowers.shift();
       old.classList.add('fade');
       setTimeout(function(){old.remove();},2100);
     }
     planted++;
-    tone(note(),1.1,0.045);
+    var now=Date.now();
+    if(now-lastTone>300){ lastTone=now; tone(note(),1.1,0.045); }
     if(planted===3) hint.classList.add('gone');
     if(planted%5===0 && butterflies<4) addButterfly();
   }
@@ -237,6 +263,13 @@
     clearTimeout(t1); clearTimeout(t2);
     balloon.classList.remove('in');
   });
+
+  /* يعمل بدون إنترنت بعد أول فتح */
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+    window.addEventListener('load',function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
 })();
 </script>
 </body>
