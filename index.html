@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>حديقة الأصدقاء</title>
+<!--
+  حديقة الأصدقاء: لعبة هادئة للأطفال.
+  - لا خسارة، لا مؤقتات، لا نقاط، لا أصوات مفاجئة.
+  - الصوت مغلق افتراضياً، ويمكن تشغيله من زر 🔊.
+  - لا تجمع أي بيانات ولا تحتاج إنترنت.
+-->
+<style>
+  :root{
+    --sky1:#cfeaff; --sky2:#fff3d6; --g1:#bfe3a8; --g2:#9fd18b; --ink:#3b4a5a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+  html,body{margin:0;height:100%;overflow:hidden;color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+  #world{position:fixed;inset:0;touch-action:manipulation;
+    background:linear-gradient(var(--sky1),var(--sky2) 55%,var(--g1) 55%,var(--g2))}
+  .sun{position:absolute;top:5%;left:8%;font-size:clamp(48px,9vw,84px);pointer-events:none}
+  .cloud{position:absolute;left:-25vw;font-size:clamp(48px,9vw,90px);opacity:.9;pointer-events:none;
+    animation:drift 140s linear infinite}
+  .cloud:nth-of-type(2){top:16%;animation-duration:190s;animation-delay:-70s}
+  .cloud:nth-of-type(3){top:4%;animation-duration:230s;animation-delay:-150s}
+  @keyframes drift{to{transform:translateX(160vw)}}
+
+  .animal{position:absolute;font-size:clamp(46px,8vw,70px);line-height:1;cursor:pointer;
+    transition:left 9s ease-in-out,top 9s ease-in-out;transform:translate(-50%,-50%)}
+  .animal .hop{display:inline-block}
+  .animal.jump .hop{animation:hop .8s ease-out}
+  @keyframes hop{0%{transform:translateY(0)}35%{transform:translateY(-22px) rotate(-6deg)}
+    70%{transform:translateY(0) rotate(4deg)}100%{transform:none}}
+  .heart{position:absolute;font-size:28px;pointer-events:none;animation:rise 1.6s ease-out forwards}
+  @keyframes rise{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-70px)}}
+
+  .flower{position:absolute;line-height:1;pointer-events:none;transform-origin:50% 100%;
+    transform:translate(-50%,-90%);animation:grow 1.4s ease-out both}
+  .flower span{display:inline-block;animation:sway 5s ease-in-out infinite;transform-origin:50% 100%}
+  @keyframes grow{from{opacity:0;transform:translate(-50%,-90%) scale(.1)}to{opacity:1;transform:translate(-50%,-90%) scale(1)}}
+  @keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+  .flower.fade{transition:opacity 2s;opacity:0}
+
+  .butterfly{position:absolute;font-size:34px;pointer-events:none;transition:left 7s ease-in-out,top 7s ease-in-out}
+  .butterfly span{display:inline-block;animation:flutter 1.2s ease-in-out infinite}
+  @keyframes flutter{0%,100%{transform:scale(1)}50%{transform:scale(.8,1)}}
+
+  #hint{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:50%;transform:translateX(-50%);
+    background:rgba(255,255,255,.75);padding:10px 18px;border-radius:999px;font-size:clamp(15px,2.6vw,20px);
+    text-align:center;max-width:92vw;transition:opacity 2s;pointer-events:none}
+  #hint.gone{opacity:0}
+
+  .btn{position:absolute;bottom:max(16px,env(safe-area-inset-bottom));width:64px;height:64px;border-radius:50%;
+    border:none;background:rgba(255,255,255,.85);font-size:30px;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  .btn:active{transform:scale(.94)}
+  #breathBtn{right:16px}
+  #soundBtn{left:16px}
+
+  #breath{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:28px;background:linear-gradient(#e7f3ff,#fdf1e3)}
+  #breath[hidden]{display:none}
+  #balloon{width:min(46vw,220px);height:min(46vw,220px);border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffe0e8,#f7a8bd);
+    box-shadow:0 8px 30px rgba(247,168,189,.5);transform:scale(.8);transition:transform 6s ease-in-out}
+  #balloon.in{transform:scale(1.4);transition-duration:4s}
+  #breathText{font-size:clamp(24px,5vw,38px);margin:0;min-height:1.4em}
+  #breathClose{border:none;border-radius:999px;padding:14px 28px;font-size:20px;background:#fff;
+    color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+  @media (prefers-reduced-motion:reduce){
+    .cloud{animation:none}
+    .animal{transition-duration:14s}
+    .flower span,.butterfly span{animation:none}
+    #balloon{transition-duration:8s}
+    #balloon.in{transition-duration:6s}
+  }
+</style>
+</head>
+<body>
+<div id="world">
+  <div class="sun">☀️</div>
+  <div class="cloud" style="top:9%">☁️</div>
+  <div class="cloud">☁️</div>
+  <div class="cloud">☁️</div>
+  <div id="hint">المس العشب لتزرع زهرة 🌱 &nbsp;·&nbsp; المس الأصدقاء ليلعبوا معك</div>
+  <button class="btn" id="breathBtn" aria-label="ركن التنفّس الهادئ">🎈</button>
+  <button class="btn" id="soundBtn" aria-label="تشغيل الصوت">🔇</button>
+</div>
+
+<div id="breath" hidden>
+  <div id="balloon"></div>
+  <p id="breathText">شهيق…</p>
+  <button id="breathClose">رجوع للحديقة</button>
+</div>
+
+<script>
+(function(){
+  var world=document.getElementById('world');
+  var hint=document.getElementById('hint');
+  var soundBtn=document.getElementById('soundBtn');
+  var breathBtn=document.getElementById('breathBtn');
+  var breath=document.getElementById('breath');
+  var balloon=document.getElementById('balloon');
+  var breathText=document.getElementById('breathText');
+  var breathClose=document.getElementById('breathClose');
+
+  var sound=false, ctx=null, planted=0, butterflies=0;
+  var flowers=[];
+  var scale=[392,440,523.25,587.33,659.25,783.99];
+
+  function rnd(a,b){return a+Math.random()*(b-a);}
+
+  /* ---------- صوت هادئ (مغلق افتراضياً) ---------- */
+  function tone(f,d,v){
+    if(!sound) return;
+    try{
+      ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+      if(ctx.state==='suspended') ctx.resume();
+      var o=ctx.createOscillator(), g=ctx.createGain(), t=ctx.currentTime;
+      d=d||0.8; v=v||0.05;
+      o.type='sine'; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(v,t+0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t+d+0.05);
+    }catch(e){}
+  }
+  function note(){return scale[Math.floor(Math.random()*scale.length)];}
+
+  soundBtn.addEventListener('click',function(e){
+    e.stopPropagation();
+    sound=!sound;
+    soundBtn.textContent=sound?'🔊':'🔇';
+    soundBtn.setAttribute('aria-label',sound?'إيقاف الصوت':'تشغيل الصوت');
+    if(sound) tone(523.25,1,0.05);
+  });
+
+  /* ---------- الأصدقاء ---------- */
+  var kinds=['🐰','🐑','🐥','🐢','🐶','🐱'];
+  kinds.forEach(function(k,i){
+    var a=document.createElement('div');
+    a.className='animal';
+    a.innerHTML='<span class="hop">'+k+'</span>';
+    a.style.left=rnd(10,88)+'%';
+    a.style.top=rnd(62,84)+'%';
+    a.style.zIndex=Math.round(parseFloat(a.style.top));
+    a.setAttribute('role','button');
+    a.setAttribute('aria-label','صديق');
+    world.appendChild(a);
+
+    a.addEventListener('pointerdown',function(e){
+      e.stopPropagation();
+      a.classList.remove('jump'); void a.offsetWidth; a.classList.add('jump');
+      var h=document.createElement('div');
+      h.className='heart'; h.textContent='💛';
+      h.style.left=a.style.left; h.style.top='calc('+a.style.top+' - 50px)';
+      world.appendChild(h);
+      setTimeout(function(){h.remove();},1700);
+      tone(note(),0.9,0.05);
+      setTimeout(function(){tone(note(),0.9,0.04);},180);
+    });
+
+    function wander(){
+      var ny=rnd(62,84);
+      a.style.left=rnd(8,90)+'%';
+      a.style.top=ny+'%';
+      a.style.zIndex=Math.round(ny);
+      setTimeout(wander,rnd(9000,14000));
+    }
+    setTimeout(wander,rnd(1500,5000)+i*400);
+  });
+
+  /* ---------- الزهور ---------- */
+  var blooms=['🌸','🌼','🌷','🌻','🌺','🌹','🪻'];
+  world.addEventListener('pointerdown',function(e){
+    if(e.target.closest('button')||e.target.closest('.animal')) return;
+    if(e.clientY<window.innerHeight*0.58) return;
+    plant(e.clientX,e.clientY);
+  });
+
+  function plant(x,y){
+    var f=document.createElement('div');
+    f.className='flower';
+    f.style.left=x+'px'; f.style.top=y+'px';
+    f.style.fontSize=Math.round(rnd(34,50))+'px';
+    f.style.zIndex=Math.round(y/10);
+    f.innerHTML='<span>'+blooms[Math.floor(Math.random()*blooms.length)]+'</span>';
+    world.appendChild(f);
+    flowers.push(f);
+    if(flowers.length>60){
+      var old=flowers.shift();
+      old.classList.add('fade');
+      setTimeout(function(){old.remove();},2100);
+    }
+    planted++;
+    tone(note(),1.1,0.045);
+    if(planted===3) hint.classList.add('gone');
+    if(planted%5===0 && butterflies<4) addButterfly();
+  }
+
+  function addButterfly(){
+    butterflies++;
+    var b=document.createElement('div');
+    b.className='butterfly';
+    b.innerHTML='<span>🦋</span>';
+    b.style.left=rnd(5,90)+'%'; b.style.top=rnd(15,50)+'%';
+    b.style.zIndex=1;
+    world.appendChild(b);
+    (function go(){
+      b.style.left=rnd(5,90)+'%'; b.style.top=rnd(12,52)+'%';
+      setTimeout(go,rnd(5500,8500));
+    })();
+  }
+
+  /* ---------- ركن التنفّس ---------- */
+  var t1=null,t2=null;
+  function cycle(){
+    breathText.textContent='شهيق… ببطء';
+    balloon.classList.add('in');
+    t1=setTimeout(function(){
+      breathText.textContent='زفير… ببطء';
+      balloon.classList.remove('in');
+    },4000);
+    t2=setTimeout(cycle,10000);
+  }
+  breathBtn.addEventListener('click',function(e){
+    e.stopPropagation();
+    breath.hidden=false;
+    balloon.classList.remove('in');
+    cycle();
+  });
+  breathClose.addEventListener('click',function(){
+    breath.hidden=true;
+    clearTimeout(t1); clearTimeout(t2);
+    balloon.classList.remove('in');
+  });
+})();
+</script>
+</body>
+</html>
